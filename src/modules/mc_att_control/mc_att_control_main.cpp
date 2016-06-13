@@ -807,14 +807,17 @@ MulticopterAttitudeControl::stabilization_indi_calc_cmd(math::Vector<3> rates_er
   rates(2) = _ctrl_state.yaw_rate;
 
   /* Propagate the second order filter on the gyroscopes */
-  body_rates.p = rates(0);
-  body_rates.q = rates(1);
-  body_rates.r = rates(2);
+  body_rates.p = rates(0) * 4096; // rad/s
+  body_rates.q = rates(1) * 4096; // rad/s
+  body_rates.r = rates(2) * 4096; // rad/s
   stabilization_indi_second_order_filter(&indi.rate, &body_rates, dt);
 
   /* Acceleration setpoint PX4 style */
   math::Vector<3> acceleration_sp;
   acceleration_sp = _params.rate_p.emult(rates_err);
+  indi.angular_accel_ref.p = acceleration_sp(0) * 4096 *1000000;
+  indi.angular_accel_ref.q = acceleration_sp(1) * 4096;
+  indi.angular_accel_ref.r = acceleration_sp(2) * 4096;
 
   /* old att loop
   indi.angular_accel_ref.p = indi.reference_acceleration.err_p * QUAT1_FLOAT_OF_BFP(att_err->qx)
@@ -853,7 +856,7 @@ MulticopterAttitudeControl::stabilization_indi_calc_cmd(math::Vector<3> rates_er
   indi.u_in.r = indi.u.x.r + indi.du.r;
 
   //bound the total control input
-  Bound(indi.u_in, -4500, 4500);
+  //Bound(indi.u_in, -4500, 4500);
 
   //Propagate input filters
   //first order actuator dynamics
@@ -867,6 +870,7 @@ MulticopterAttitudeControl::stabilization_indi_calc_cmd(math::Vector<3> rates_er
   //Don't increment if thrust is off
   //TODO: this should be something more elegant, but without this the inputs will increment to the maximum before
   //even getting in the air.
+  /*
   if (_thrust_sp > MIN_TAKEOFF_THRUST && !_motor_limits.lower_limit && !_motor_limits.upper_limit) {
     FLOAT_RATES_ZERO(indi.du);
     FLOAT_RATES_ZERO(indi.u_act_dyn);
@@ -878,6 +882,11 @@ MulticopterAttitudeControl::stabilization_indi_calc_cmd(math::Vector<3> rates_er
     // only run the estimation if the commands are not zero.
     //lms_estimation();
   }
+  */
+
+  _att_control(0) = indi.rate.dx.p;
+  _att_control(1) = 0.0f;
+  _att_control(2) = 0.0f;
 
   /*  INDI feedback */
   /*
@@ -975,6 +984,12 @@ MulticopterAttitudeControl::task_main()
   stabilization_indi_second_order_filter_init(&indi.u, STABILIZATION_INDI_FILT_OMEGA, STABILIZATION_INDI_FILT_ZETA, STABILIZATION_INDI_FILT_OMEGA_R);
   stabilization_indi_second_order_filter_init(&indi.est.rate, 10.0, 0.8, 10.0); //FIXME: no magic number
   stabilization_indi_second_order_filter_init(&indi.est.u, 10.0, 0.8, 10.0); //FIXME: no magic number
+
+  indi.g1.p = 0.017;
+  indi.g1.q = 0.019;
+  indi.g1.r = 0.0011;
+  indi.g2   = 0.089;
+
 	while (!_task_should_exit) {
 
 		/* wait for up to 100ms for data */

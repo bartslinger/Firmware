@@ -72,9 +72,9 @@ struct IndiVariables {
   struct IndiEstimation est; ///< Estimation parameters for adaptive INDI
 };
 
-#define STABILIZATION_INDI_ACT_DYN_P 1
-#define STABILIZATION_INDI_ACT_DYN_Q 1
-#define STABILIZATION_INDI_ACT_DYN_R 1
+#define STABILIZATION_INDI_ACT_DYN_P 0.04f
+#define STABILIZATION_INDI_ACT_DYN_Q 0.04f
+#define STABILIZATION_INDI_ACT_DYN_R 0.04f
 #define STABILIZATION_ATTITUDE_SP_MAX_R 350
 
 #if !defined(STABILIZATION_INDI_ACT_DYN_P) && !defined(STABILIZATION_INDI_ACT_DYN_Q) && !defined(STABILIZATION_INDI_ACT_DYN_R)
@@ -84,7 +84,7 @@ struct IndiVariables {
 // these parameters are used in the filtering of the angular acceleration
 // define them in the airframe file if different values are required
 #ifndef STABILIZATION_INDI_FILT_OMEGA
-#define STABILIZATION_INDI_FILT_OMEGA 50.0
+#define STABILIZATION_INDI_FILT_OMEGA 20.0
 #endif
 
 #ifndef STABILIZATION_INDI_FILT_ZETA
@@ -112,10 +112,6 @@ struct IndiVariables {
 #define STABILIZATION_INDI_MAX_R STABILIZATION_ATTITUDE_SP_MAX_R
 #endif
 
-#define STABILIZATION_INDI_G1_P 0.0639
-#define STABILIZATION_INDI_G1_Q 0.0361
-#define STABILIZATION_INDI_G1_R 0.0022
-#define STABILIZATION_INDI_G2_R 0.1450
 #define STABILIZATION_INDI_REF_ERR_P 600
 #define STABILIZATION_INDI_REF_ERR_Q 600
 #define STABILIZATION_INDI_REF_ERR_R 600
