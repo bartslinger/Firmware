@@ -88,6 +88,7 @@
 #include <lib/mathlib/mathlib.h>
 #include <lib/geo/geo.h>
 #include <lib/tailsitter_recovery/tailsitter_recovery.h>
+#include "indi_structs.h"
 
 /**
  * Multicopter attitude control app start / stop handling function
@@ -227,6 +228,12 @@ private:
 
 	TailsitterRecovery *_ts_opt_recovery;	/**< Computes optimal rates for tailsitter recovery */
 
+  /**
+   * INDI Variables
+   */
+  FloatRates body_rates;
+  IndiVariables indi;
+
 	/**
 	 * Update our local parameter cache.
 	 */
@@ -291,6 +298,19 @@ private:
 	 * Main attitude control task.
 	 */
 	void		task_main();
+
+  /**
+   * INDI loop
+   */
+  void stabilization_indi_calc_cmd(math::Vector<3> rates_err, float dt);
+
+  /**
+   * INDI filtertjes
+   */
+  void stabilization_indi_second_order_filter_init(struct IndiFilter *filter, float omega, float zeta, float omega_r);
+  void stabilization_indi_second_order_filter(struct IndiFilter *filter, struct FloatRates *input, float dt);
+
+
 };
 
 namespace mc_att_control
@@ -752,6 +772,122 @@ MulticopterAttitudeControl::control_attitude(float dt)
 
 }
 
+// Initialize a second order low pass filter
+void
+MulticopterAttitudeControl::stabilization_indi_second_order_filter_init(struct IndiFilter *filter, float omega, float zeta, float omega_r)
+{
+  filter->omega = omega;
+  filter->omega2 = omega * omega;
+  filter->zeta = zeta;
+  filter->omega_r = omega_r;
+  filter->omega2_r = omega_r * omega_r;
+}
+
+// This is a simple second order low pass filter
+void
+MulticopterAttitudeControl::stabilization_indi_second_order_filter(struct IndiFilter *filter, struct FloatRates *input, float dt)
+{
+  float_rates_integrate_fi(&filter->x, &filter->dx, dt);
+  float_rates_integrate_fi(&filter->dx, &filter->ddx, dt);
+
+  filter->ddx.p = -filter->dx.p * 2 * filter->zeta * filter->omega   + (input->p - filter->x.p) * filter->omega2;
+  filter->ddx.q = -filter->dx.q * 2 * filter->zeta * filter->omega   + (input->q - filter->x.q) * filter->omega2;
+  filter->ddx.r = -filter->dx.r * 2 * filter->zeta * filter->omega_r + (input->r - filter->x.r) * filter->omega2_r;
+}
+
+
+
+void
+MulticopterAttitudeControl::stabilization_indi_calc_cmd(math::Vector<3> rates_err, float dt)
+{
+  /* current body angular rates */
+  math::Vector<3> rates;
+  rates(0) = _ctrl_state.roll_rate;
+  rates(1) = _ctrl_state.pitch_rate;
+  rates(2) = _ctrl_state.yaw_rate;
+
+  /* Propagate the second order filter on the gyroscopes */
+  body_rates.p = rates(0);
+  body_rates.q = rates(1);
+  body_rates.r = rates(2);
+  stabilization_indi_second_order_filter(&indi.rate, &body_rates, dt);
+
+  /* Acceleration setpoint PX4 style */
+  math::Vector<3> acceleration_sp;
+  acceleration_sp = _params.rate_p.emult(rates_err);
+
+  /* old att loop
+  indi.angular_accel_ref.p = indi.reference_acceleration.err_p * QUAT1_FLOAT_OF_BFP(att_err->qx)
+                             - indi.reference_acceleration.rate_p * rates_for_feedback.p;
+
+  indi.angular_accel_ref.q = indi.reference_acceleration.err_q * QUAT1_FLOAT_OF_BFP(att_err->qy)
+                             - indi.reference_acceleration.rate_q * rates_for_feedback.q;
+                             */
+
+  //This separates the P and D controller and lets you impose a maximum yaw rate.
+  /*
+  float rate_ref_r = indi.reference_acceleration.err_r * QUAT1_FLOAT_OF_BFP(att_err->qz)/indi.reference_acceleration.rate_r;
+  BoundAbs(rate_ref_r, indi.attitude_max_yaw_rate);
+  indi.angular_accel_ref.r = indi.reference_acceleration.rate_r * (rate_ref_r - rates_for_feedback.r);
+  */
+
+  /* Check if we are running the rate controller and overwrite */
+  /*
+  if(rate_control) {
+    indi.angular_accel_ref.p =  indi.reference_acceleration.rate_p * ((float)radio_control.values[RADIO_ROLL]  / MAX_PPRZ * indi.max_rate - body_rates->p);
+    indi.angular_accel_ref.q =  indi.reference_acceleration.rate_q * ((float)radio_control.values[RADIO_PITCH] / MAX_PPRZ * indi.max_rate - body_rates->q);
+    indi.angular_accel_ref.r =  indi.reference_acceleration.rate_r * ((float)radio_control.values[RADIO_YAW]   / MAX_PPRZ * indi.max_rate - body_rates->r);
+  }*/
+
+  //Increment in angular acceleration requires increment in control input
+  //G1 is the control effectiveness. In the yaw axis, we need something additional: G2.
+  //It takes care of the angular acceleration caused by the change in rotation rate of the propellers
+  //(they have significant inertia, see the paper mentioned in the header for more explanation)
+  indi.du.p = 1.0f / indi.g1.p * (indi.angular_accel_ref.p - indi.rate.dx.p);
+  indi.du.q = 1.0f / indi.g1.q * (indi.angular_accel_ref.q - indi.rate.dx.q);
+  indi.du.r = 1.0f / (indi.g1.r + indi.g2) * (indi.angular_accel_ref.r - indi.rate.dx.r + indi.g2 * indi.du.r);
+
+  //add the increment to the total control input
+  indi.u_in.p = indi.u.x.p + indi.du.p;
+  indi.u_in.q = indi.u.x.q + indi.du.q;
+  indi.u_in.r = indi.u.x.r + indi.du.r;
+
+  //bound the total control input
+  Bound(indi.u_in, -4500, 4500);
+
+  //Propagate input filters
+  //first order actuator dynamics
+  indi.u_act_dyn.p = indi.u_act_dyn.p + STABILIZATION_INDI_ACT_DYN_P * (indi.u_in.p - indi.u_act_dyn.p);
+  indi.u_act_dyn.q = indi.u_act_dyn.q + STABILIZATION_INDI_ACT_DYN_Q * (indi.u_in.q - indi.u_act_dyn.q);
+  indi.u_act_dyn.r = indi.u_act_dyn.r + STABILIZATION_INDI_ACT_DYN_R * (indi.u_in.r - indi.u_act_dyn.r);
+
+  //sensor filter
+  stabilization_indi_second_order_filter(&indi.u, &indi.u_act_dyn, dt);
+
+  //Don't increment if thrust is off
+  //TODO: this should be something more elegant, but without this the inputs will increment to the maximum before
+  //even getting in the air.
+  if (_thrust_sp > MIN_TAKEOFF_THRUST && !_motor_limits.lower_limit && !_motor_limits.upper_limit) {
+    FLOAT_RATES_ZERO(indi.du);
+    FLOAT_RATES_ZERO(indi.u_act_dyn);
+    FLOAT_RATES_ZERO(indi.u_in);
+    FLOAT_RATES_ZERO(indi.u.x);
+    FLOAT_RATES_ZERO(indi.u.dx);
+    FLOAT_RATES_ZERO(indi.u.ddx);
+  } else {
+    // only run the estimation if the commands are not zero.
+    //lms_estimation();
+  }
+
+  /*  INDI feedback */
+  /*
+  indi_commands[COMMAND_ROLL] = indi.u_in.p;
+  indi_commands[COMMAND_PITCH] = indi.u_in.q;
+  indi_commands[COMMAND_YAW] = indi.u_in.r;
+  */
+}
+
+
 /*
  * Attitude rates controller.
  * Input: '_rates_sp' vector, '_thrust_sp'
@@ -773,12 +909,21 @@ MulticopterAttitudeControl::control_attitude_rates(float dt)
 
 	/* angular rates error */
 	math::Vector<3> rates_err = _rates_sp - rates;
-	_att_control = _params.rate_p.emult(rates_err) + _params.rate_d.emult(_rates_prev - rates) / dt + _rates_int +
-		       _params.rate_ff.emult(_rates_sp - _rates_sp_prev) / dt;
+
+  /* OLD PID CONTROLLER */
+  _att_control = _params.rate_p.emult(rates_err) + _params.rate_d.emult(_rates_prev - rates) / dt + _rates_int +
+           _params.rate_ff.emult(_rates_sp - _rates_sp_prev) / dt;
+
+  /* NEW INDI CONTROLLERT */
+  /* Overwrite att control */
+  stabilization_indi_calc_cmd(rates_err, dt);
+
+
 	_rates_sp_prev = _rates_sp;
 	_rates_prev = rates;
 
 	/* update integral only if not saturated on low limit and if motor commands are not saturated */
+
 	if (_thrust_sp > MIN_TAKEOFF_THRUST && !_motor_limits.lower_limit && !_motor_limits.upper_limit) {
 		for (int i = 0; i < 3; i++) {
 			if (fabsf(_att_control(i)) < _thrust_sp) {
@@ -825,6 +970,12 @@ MulticopterAttitudeControl::task_main()
 	fds[0].fd = _ctrl_state_sub;
 	fds[0].events = POLLIN;
 
+  /* INIT INDI STUFF */
+  // Initialize filters
+  stabilization_indi_second_order_filter_init(&indi.rate, STABILIZATION_INDI_FILT_OMEGA, STABILIZATION_INDI_FILT_ZETA, STABILIZATION_INDI_FILT_OMEGA_R);
+  stabilization_indi_second_order_filter_init(&indi.u, STABILIZATION_INDI_FILT_OMEGA, STABILIZATION_INDI_FILT_ZETA, STABILIZATION_INDI_FILT_OMEGA_R);
+  stabilization_indi_second_order_filter_init(&indi.est.rate, 10.0, 0.8, 10.0); //FIXME: no magic number
+  stabilization_indi_second_order_filter_init(&indi.est.u, 10.0, 0.8, 10.0); //FIXME: no magic number
 	while (!_task_should_exit) {
 
 		/* wait for up to 100ms for data */
