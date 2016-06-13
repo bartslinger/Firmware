@@ -72,9 +72,20 @@ struct IndiVariables {
   struct IndiEstimation est; ///< Estimation parameters for adaptive INDI
 };
 
-#define STABILIZATION_INDI_ACT_DYN_P 0.04f
-#define STABILIZATION_INDI_ACT_DYN_Q 0.04f
-#define STABILIZATION_INDI_ACT_DYN_R 0.04f
+/*
+ * Originally 0.04 for 512 Hz
+ * More general:
+ * tau = 0.0469
+ *
+ * alpha = dt / (tau + dt)
+ *
+ * (which gives 0.04 for dt=1/512)
+ *
+ */
+#define STABILIZATION_INDI_ACT_DYN_P 0.0469f
+#define STABILIZATION_INDI_ACT_DYN_Q 0.0469f
+#define STABILIZATION_INDI_ACT_DYN_R 0.0469f
+
 #define STABILIZATION_ATTITUDE_SP_MAX_R 350
 
 #if !defined(STABILIZATION_INDI_ACT_DYN_P) && !defined(STABILIZATION_INDI_ACT_DYN_Q) && !defined(STABILIZATION_INDI_ACT_DYN_R)

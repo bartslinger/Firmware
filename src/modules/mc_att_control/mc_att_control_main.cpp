@@ -790,9 +790,9 @@ MulticopterAttitudeControl::stabilization_indi_second_order_filter(struct IndiFi
   float_rates_integrate_fi(&filter->x, &filter->dx, dt);
   float_rates_integrate_fi(&filter->dx, &filter->ddx, dt);
 
-  filter->ddx.p = -filter->dx.p * 2 * filter->zeta * filter->omega   + (input->p - filter->x.p) * filter->omega2;
-  filter->ddx.q = -filter->dx.q * 2 * filter->zeta * filter->omega   + (input->q - filter->x.q) * filter->omega2;
-  filter->ddx.r = -filter->dx.r * 2 * filter->zeta * filter->omega_r + (input->r - filter->x.r) * filter->omega2_r;
+  filter->ddx.p = -filter->dx.p * 2.0f * filter->zeta * filter->omega   + (input->p - filter->x.p) * filter->omega2;
+  filter->ddx.q = -filter->dx.q * 2.0f * filter->zeta * filter->omega   + (input->q - filter->x.q) * filter->omega2;
+  filter->ddx.r = -filter->dx.r * 2.0f * filter->zeta * filter->omega_r + (input->r - filter->x.r) * filter->omega2_r;
 }
 
 
@@ -807,40 +807,17 @@ MulticopterAttitudeControl::stabilization_indi_calc_cmd(math::Vector<3> rates_er
   rates(2) = _ctrl_state.yaw_rate;
 
   /* Propagate the second order filter on the gyroscopes */
-  body_rates.p = rates(0) * 4096; // rad/s
-  body_rates.q = rates(1) * 4096; // rad/s
-  body_rates.r = rates(2) * 4096; // rad/s
+  body_rates.p = rates(0); // rad/s
+  body_rates.q = rates(1); // rad/s
+  body_rates.r = rates(2); // rad/s
   stabilization_indi_second_order_filter(&indi.rate, &body_rates, dt);
 
   /* Acceleration setpoint PX4 style */
   math::Vector<3> acceleration_sp;
   acceleration_sp = _params.rate_p.emult(rates_err);
-  indi.angular_accel_ref.p = acceleration_sp(0) * 4096 *1000000;
-  indi.angular_accel_ref.q = acceleration_sp(1) * 4096;
-  indi.angular_accel_ref.r = acceleration_sp(2) * 4096;
-
-  /* old att loop
-  indi.angular_accel_ref.p = indi.reference_acceleration.err_p * QUAT1_FLOAT_OF_BFP(att_err->qx)
-                             - indi.reference_acceleration.rate_p * rates_for_feedback.p;
-
-  indi.angular_accel_ref.q = indi.reference_acceleration.err_q * QUAT1_FLOAT_OF_BFP(att_err->qy)
-                             - indi.reference_acceleration.rate_q * rates_for_feedback.q;
-                             */
-
-  //This separates the P and D controller and lets you impose a maximum yaw rate.
-  /*
-  float rate_ref_r = indi.reference_acceleration.err_r * QUAT1_FLOAT_OF_BFP(att_err->qz)/indi.reference_acceleration.rate_r;
-  BoundAbs(rate_ref_r, indi.attitude_max_yaw_rate);
-  indi.angular_accel_ref.r = indi.reference_acceleration.rate_r * (rate_ref_r - rates_for_feedback.r);
-  */
-
-  /* Check if we are running the rate controller and overwrite */
-  /*
-  if(rate_control) {
-    indi.angular_accel_ref.p =  indi.reference_acceleration.rate_p * ((float)radio_control.values[RADIO_ROLL]  / MAX_PPRZ * indi.max_rate - body_rates->p);
-    indi.angular_accel_ref.q =  indi.reference_acceleration.rate_q * ((float)radio_control.values[RADIO_PITCH] / MAX_PPRZ * indi.max_rate - body_rates->q);
-    indi.angular_accel_ref.r =  indi.reference_acceleration.rate_r * ((float)radio_control.values[RADIO_YAW]   / MAX_PPRZ * indi.max_rate - body_rates->r);
-  }*/
+  indi.angular_accel_ref.p = STABILIZATION_INDI_REF_RATE_P * rates_err(0);
+  indi.angular_accel_ref.q = STABILIZATION_INDI_REF_RATE_Q * rates_err(0);
+  indi.angular_accel_ref.r = STABILIZATION_INDI_REF_RATE_R * rates_err(0);
 
   //Increment in angular acceleration requires increment in control input
   //G1 is the control effectiveness. In the yaw axis, we need something additional: G2.
@@ -856,13 +833,16 @@ MulticopterAttitudeControl::stabilization_indi_calc_cmd(math::Vector<3> rates_er
   indi.u_in.r = indi.u.x.r + indi.du.r;
 
   //bound the total control input
-  //Bound(indi.u_in, -4500, 4500);
+  Bound(indi.u_in, -4500, 4500);
 
   //Propagate input filters
   //first order actuator dynamics
-  indi.u_act_dyn.p = indi.u_act_dyn.p + STABILIZATION_INDI_ACT_DYN_P * (indi.u_in.p - indi.u_act_dyn.p);
-  indi.u_act_dyn.q = indi.u_act_dyn.q + STABILIZATION_INDI_ACT_DYN_Q * (indi.u_in.q - indi.u_act_dyn.q);
-  indi.u_act_dyn.r = indi.u_act_dyn.r + STABILIZATION_INDI_ACT_DYN_R * (indi.u_in.r - indi.u_act_dyn.r);
+  float alpha_p = dt / (STABILIZATION_INDI_ACT_DYN_P + dt);
+  float alpha_q = dt / (STABILIZATION_INDI_ACT_DYN_P + dt);
+  float alpha_r = dt / (STABILIZATION_INDI_ACT_DYN_P + dt);
+  indi.u_act_dyn.p = indi.u_act_dyn.p + alpha_p * (indi.u_in.p - indi.u_act_dyn.p);
+  indi.u_act_dyn.q = indi.u_act_dyn.q + alpha_q * (indi.u_in.q - indi.u_act_dyn.q);
+  indi.u_act_dyn.r = indi.u_act_dyn.r + alpha_r * (indi.u_in.r - indi.u_act_dyn.r);
 
   //sensor filter
   stabilization_indi_second_order_filter(&indi.u, &indi.u_act_dyn, dt);
@@ -884,9 +864,9 @@ MulticopterAttitudeControl::stabilization_indi_calc_cmd(math::Vector<3> rates_er
   }
   */
 
-  _att_control(0) = indi.rate.dx.p;
-  _att_control(1) = 0.0f;
-  _att_control(2) = 0.0f;
+  _att_control(0) = indi.u_in.p / 9600;
+  _att_control(1) = 0.0f; // indi.u_in.q / 9600;
+  _att_control(2) = 0.0f; // indi.u_in.r / 9600;
 
   /*  INDI feedback */
   /*
@@ -989,6 +969,34 @@ MulticopterAttitudeControl::task_main()
   indi.g1.q = 0.019;
   indi.g1.r = 0.0011;
   indi.g2   = 0.089;
+
+  indi.rate.x.p = 0.0f;
+  indi.rate.x.q = 0.0f;
+  indi.rate.x.r = 0.0f;
+  indi.rate.dx.p = 0.0f;
+  indi.rate.dx.q = 0.0f;
+  indi.rate.dx.r = 0.0f;
+  indi.rate.ddx.p = 0.0f;
+  indi.rate.ddx.q = 0.0f;
+  indi.rate.ddx.r = 0.0f;
+
+  indi.u.x.p = 0.0f;
+  indi.u.x.q = 0.0f;
+  indi.u.x.r = 0.0f;
+  indi.u.dx.p = 0.0f;
+  indi.u.dx.q = 0.0f;
+  indi.u.dx.r = 0.0f;
+  indi.u.ddx.p = 0.0f;
+  indi.u.ddx.q = 0.0f;
+  indi.u.ddx.r = 0.0f;
+
+  indi.u_act_dyn.p = 0.0f;
+  indi.u_act_dyn.q = 0.0f;
+  indi.u_act_dyn.r = 0.0f;
+
+  indi.u_in.p = 0.0f;
+  indi.u_in.q = 0.0f;
+  indi.u_in.r = 0.0f;
 
 	while (!_task_should_exit) {
 
