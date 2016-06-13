@@ -801,15 +801,15 @@ void
 MulticopterAttitudeControl::stabilization_indi_calc_cmd(math::Vector<3> rates_err, float dt)
 {
   /* current body angular rates */
-  math::Vector<3> rates;
-  rates(0) = _ctrl_state.roll_rate;
-  rates(1) = _ctrl_state.pitch_rate;
-  rates(2) = _ctrl_state.yaw_rate;
+  //math::Vector<3> rates;
+  //rates(0) = _ctrl_state.roll_rate;
+  //rates(1) = _ctrl_state.pitch_rate;
+  //rates(2) = _ctrl_state.yaw_rate;
 
   /* Propagate the second order filter on the gyroscopes */
-  body_rates.p = rates(0); // rad/s
-  body_rates.q = rates(1); // rad/s
-  body_rates.r = rates(2); // rad/s
+  body_rates.p = _ctrl_state.roll_rate; // rad/s
+  body_rates.q = _ctrl_state.pitch_rate; // rad/s
+  body_rates.r = _ctrl_state.yaw_rate; // rad/s
   stabilization_indi_second_order_filter(&indi.rate, &body_rates, dt);
 
   /* Acceleration setpoint PX4 style */
