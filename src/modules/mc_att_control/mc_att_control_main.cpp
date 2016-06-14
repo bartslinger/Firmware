@@ -816,8 +816,8 @@ MulticopterAttitudeControl::stabilization_indi_calc_cmd(math::Vector<3> rates_er
   math::Vector<3> acceleration_sp;
   acceleration_sp = _params.rate_p.emult(rates_err);
   indi.angular_accel_ref.p = STABILIZATION_INDI_REF_RATE_P * rates_err(0);
-  indi.angular_accel_ref.q = STABILIZATION_INDI_REF_RATE_Q * rates_err(0);
-  indi.angular_accel_ref.r = STABILIZATION_INDI_REF_RATE_R * rates_err(0);
+  indi.angular_accel_ref.q = STABILIZATION_INDI_REF_RATE_Q * rates_err(1);
+  indi.angular_accel_ref.r = STABILIZATION_INDI_REF_RATE_R * rates_err(2);
 
   //Increment in angular acceleration requires increment in control input
   //G1 is the control effectiveness. In the yaw axis, we need something additional: G2.
@@ -837,9 +837,9 @@ MulticopterAttitudeControl::stabilization_indi_calc_cmd(math::Vector<3> rates_er
 
   //Propagate input filters
   //first order actuator dynamics
-  float alpha_p = dt / (STABILIZATION_INDI_ACT_DYN_P + dt);
-  float alpha_q = dt / (STABILIZATION_INDI_ACT_DYN_P + dt);
-  float alpha_r = dt / (STABILIZATION_INDI_ACT_DYN_P + dt);
+  float alpha_p = dt / (STABILIZATION_INDI_ACT_DYN_P*3.0f + dt);
+  float alpha_q = dt / (STABILIZATION_INDI_ACT_DYN_P*3.0f + dt);
+  float alpha_r = dt / (STABILIZATION_INDI_ACT_DYN_P*3.0f + dt);
   indi.u_act_dyn.p = indi.u_act_dyn.p + alpha_p * (indi.u_in.p - indi.u_act_dyn.p);
   indi.u_act_dyn.q = indi.u_act_dyn.q + alpha_q * (indi.u_in.q - indi.u_act_dyn.q);
   indi.u_act_dyn.r = indi.u_act_dyn.r + alpha_r * (indi.u_in.r - indi.u_act_dyn.r);
@@ -850,7 +850,7 @@ MulticopterAttitudeControl::stabilization_indi_calc_cmd(math::Vector<3> rates_er
   //Don't increment if thrust is off
   //TODO: this should be something more elegant, but without this the inputs will increment to the maximum before
   //even getting in the air.
-  /*
+
   if (_thrust_sp > MIN_TAKEOFF_THRUST && !_motor_limits.lower_limit && !_motor_limits.upper_limit) {
     FLOAT_RATES_ZERO(indi.du);
     FLOAT_RATES_ZERO(indi.u_act_dyn);
@@ -862,11 +862,11 @@ MulticopterAttitudeControl::stabilization_indi_calc_cmd(math::Vector<3> rates_er
     // only run the estimation if the commands are not zero.
     //lms_estimation();
   }
-  */
+
 
   _att_control(0) = indi.u_in.p / 9600;
-  _att_control(1) = 0.0f; // indi.u_in.q / 9600;
-  _att_control(2) = 0.0f; // indi.u_in.r / 9600;
+  _att_control(1) = indi.u_in.q / 9600;
+  //_att_control(2) = indi.u_in.r / 9600;
 
   /*  INDI feedback */
   /*
@@ -967,7 +967,7 @@ MulticopterAttitudeControl::task_main()
 
   indi.g1.p = 0.017;
   indi.g1.q = 0.019;
-  indi.g1.r = 0.0011;
+  indi.g1.r = 0.0011*2.0;
   indi.g2   = 0.089;
 
   indi.rate.x.p = 0.0f;
