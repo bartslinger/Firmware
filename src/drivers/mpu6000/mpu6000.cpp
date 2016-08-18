@@ -85,6 +85,7 @@
 #include <drivers/drv_hrt.h>
 
 #include <drivers/device/spi.h>
+#include <drivers/device/i2c.h>
 #include <drivers/device/ringbuffer.h>
 #include <drivers/device/integrator.h>
 #include <drivers/drv_accel.h>
@@ -326,7 +327,7 @@ private:
 	 * @param reg		The register to write.
 	 * @param value		The new value to write.
 	 */
-	int					write_reg(unsigned reg, uint8_t value);
+	int				write_reg(unsigned reg, uint8_t value);
 
 	/**
 	 * Modify a register in the MPU6000
@@ -353,7 +354,7 @@ private:
 	 * @param max_g		The maximum G value the range must support.
 	 * @return		OK if the value can be supported, -ERANGE otherwise.
 	 */
-	int			set_accel_range(unsigned max_g);
+	int				set_accel_range(unsigned max_g);
 
 	/**
 	 * Swap a 16-bit value read from the MPU6000 to native byte order.
@@ -383,29 +384,30 @@ private:
 	 *
 	 * @return 0 on success, 1 on failure
 	 */
-	int 			accel_self_test();
+	int				accel_self_test();
 
 	/**
 	 * Gyro self test
 	 *
 	 * @return 0 on success, 1 on failure
 	 */
-	int 			gyro_self_test();
+	int				gyro_self_test();
 
 	/*
 	  set low pass filter frequency
 	 */
-	void _set_dlpf_filter(uint16_t frequency_hz);
+	void 			_set_dlpf_filter(uint16_t frequency_hz);
+	void 			_set_icm_acc_dlpf_filter(uint16_t frequency_hz);
 
 	/*
 	  set sample rate (approximate) - 1kHz to 5Hz
 	*/
-	void _set_sample_rate(unsigned desired_sample_rate_hz);
+	void			_set_sample_rate(unsigned desired_sample_rate_hz);
 
 	/*
 	  check that key registers still have the right value
 	 */
-	void check_registers(void);
+	void			check_registers(void);
 
 	/* do not allow to copy this class due to pointer data members */
 	MPU6000(const MPU6000 &);
@@ -742,6 +744,11 @@ int MPU6000::reset()
 	// was 90 Hz, but this ruins quality and does not improve the
 	// system response
 	_set_dlpf_filter(MPU6000_DEFAULT_ONCHIP_FILTER_FREQ);
+
+	if (is_icm_device()) {
+		_set_icm_acc_dlpf_filter(MPU6000_DEFAULT_ONCHIP_FILTER_FREQ);
+	}
+
 	usleep(1000);
 	// Gyro scale 2000 deg/s ()
 	write_checked_reg(MPUREG_GYRO_CONFIG, BITS_FS_2000DPS);
@@ -849,34 +856,73 @@ MPU6000::_set_dlpf_filter(uint16_t frequency_hz)
 	   choose next highest filter frequency available
 	 */
 	if (frequency_hz == 0) {
-		filter = BITS_DLPF_CFG_2100HZ_NOLPF;
+		filter = MPU_GYRO_DLPF_CFG_2100HZ_NOLPF;
 
 	} else if (frequency_hz <= 5) {
-		filter = BITS_DLPF_CFG_5HZ;
+		filter = MPU_GYRO_DLPF_CFG_5HZ;
 
 	} else if (frequency_hz <= 10) {
-		filter = BITS_DLPF_CFG_10HZ;
+		filter = MPU_GYRO_DLPF_CFG_10HZ;
 
 	} else if (frequency_hz <= 20) {
-		filter = BITS_DLPF_CFG_20HZ;
+		filter = MPU_GYRO_DLPF_CFG_20HZ;
 
 	} else if (frequency_hz <= 42) {
-		filter = BITS_DLPF_CFG_42HZ;
+		filter = MPU_GYRO_DLPF_CFG_42HZ;
 
 	} else if (frequency_hz <= 98) {
-		filter = BITS_DLPF_CFG_98HZ;
+		filter = MPU_GYRO_DLPF_CFG_98HZ;
 
 	} else if (frequency_hz <= 188) {
-		filter = BITS_DLPF_CFG_188HZ;
+		filter = MPU_GYRO_DLPF_CFG_188HZ;
 
 	} else if (frequency_hz <= 256) {
-		filter = BITS_DLPF_CFG_256HZ_NOLPF2;
+		filter = MPU_GYRO_DLPF_CFG_256HZ_NOLPF2;
 
 	} else {
-		filter = BITS_DLPF_CFG_2100HZ_NOLPF;
+		filter = MPU_GYRO_DLPF_CFG_2100HZ_NOLPF;
 	}
 
 	write_checked_reg(MPUREG_CONFIG, filter);
+}
+
+void
+MPU6000::_set_icm_acc_dlpf_filter(uint16_t frequency_hz)
+{
+	uint8_t filter;
+
+	/*
+	   choose next highest filter frequency available
+	 */
+	if (frequency_hz == 0) {
+		filter = ICM_ACC_DLPF_CFG_1046HZ_NOLPF;
+
+	} else if (frequency_hz <= 5) {
+		filter = ICM_ACC_DLPF_CFG_5HZ;
+
+	} else if (frequency_hz <= 10) {
+		filter = ICM_ACC_DLPF_CFG_10HZ;
+
+	} else if (frequency_hz <= 21) {
+		filter = ICM_ACC_DLPF_CFG_21HZ;
+
+	} else if (frequency_hz <= 44) {
+		filter = ICM_ACC_DLPF_CFG_44HZ;
+
+	} else if (frequency_hz <= 99) {
+		filter = ICM_ACC_DLPF_CFG_99HZ;
+
+	} else if (frequency_hz <= 218) {
+		filter = ICM_ACC_DLPF_CFG_218HZ;
+
+	} else if (frequency_hz <= 420) {
+		filter = ICM_ACC_DLPF_CFG_420HZ;
+
+	} else {
+		filter = ICM_ACC_DLPF_CFG_1046HZ_NOLPF;
+	}
+
+	write_checked_reg(ICMREG_ACCEL_CONFIG2, filter);
 }
 
 ssize_t
@@ -1287,6 +1333,11 @@ MPU6000::ioctl(struct file *filp, int cmd, unsigned long arg)
 					float cutoff_freq_hz = _accel_filter_x.get_cutoff_freq();
 					float sample_rate = 1.0e6f / ticks;
 					_set_dlpf_filter(cutoff_freq_hz);
+
+					if (is_icm_device()) {
+						_set_icm_acc_dlpf_filter(cutoff_freq_hz);
+					}
+
 					_accel_filter_x.set_cutoff_frequency(sample_rate, cutoff_freq_hz);
 					_accel_filter_y.set_cutoff_frequency(sample_rate, cutoff_freq_hz);
 					_accel_filter_z.set_cutoff_frequency(sample_rate, cutoff_freq_hz);
@@ -1367,6 +1418,7 @@ MPU6000::ioctl(struct file *filp, int cmd, unsigned long arg)
 	case ACCELIOCSLOWPASS:
 		// set hardware filtering
 		_set_dlpf_filter(arg);
+		_set_icm_acc_dlpf_filter(arg);
 		// set software filtering
 		_accel_filter_x.set_cutoff_frequency(1.0e6f / _call_interval, arg);
 		_accel_filter_y.set_cutoff_frequency(1.0e6f / _call_interval, arg);
@@ -2203,7 +2255,6 @@ start_bus(struct mpu6000_bus_option &bus, enum Rotation rotation, int range, int
 	}
 
 	device::Device *interface = bus.interface_constructor(bus.busnum, device_type, external);
-
 
 	if (interface == nullptr) {
 		warnx("no device on bus %u", (unsigned)bus.busid);
