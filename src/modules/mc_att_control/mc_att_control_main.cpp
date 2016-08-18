@@ -484,7 +484,12 @@ MulticopterAttitudeControl::parameters_update()
 	param_get(_params_handles.pitch_rate_ff, &v);
 	_params.rate_ff(1) = v;
 
-	/* yaw gains */
+    param_get(_params_handles.tpa_breakpoint, &v);
+    _params.tpa_breakpoint = v;
+    param_get(_params_handles.tpa_slope, &v);
+    _params.tpa_slope = v;
+
+    /* yaw gains */
 	param_get(_params_handles.yaw_p, &v);
 	_params.att_p(2) = v;
 	param_get(_params_handles.yaw_rate_p, &v);
