@@ -759,8 +759,6 @@ then
 			param set MAV_TYPE $MAV_TYPE
 		fi
 
-		echo "MAV_TYPE = $MAV_TYPE"
-
 		# Load mixer and configure outputs
 		sh /etc/init.d/rc.interface
 
