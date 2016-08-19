@@ -51,7 +51,7 @@
  * @increment 0.5
  * @group Multicopter Attitude Control
  */
-PARAMETER_DEFINE_FLOAT(MC_HELI_ROT, 0.0f);
+PARAM_DEFINE_FLOAT(MC_HELI_ROT, 0.0f);
 
 /**
  * Roll time constant

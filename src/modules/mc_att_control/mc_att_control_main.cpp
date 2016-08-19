@@ -175,6 +175,7 @@ private:
 	math::Matrix<3, 3>  _I;				/**< identity matrix */
 
 	struct {
+		param_t heli_rot;
 		param_t roll_p;
 		param_t roll_rate_p;
 		param_t roll_rate_i;
@@ -212,6 +213,7 @@ private:
 	}		_params_handles;		/**< handles for interesting parameters */
 
 	struct {
+		float heli_rot;						/**< Rotation of heli roll/pitch commands */
 		math::Vector<3> att_p;					/**< P gain for angular error */
 		math::Vector<3> rate_p;				/**< P gain for angular rate error */
 		math::Vector<3> rate_i;				/**< I gain for angular rate error */
@@ -350,6 +352,7 @@ MulticopterAttitudeControl::MulticopterAttitudeControl() :
 	memset(&_controller_status, 0, sizeof(_controller_status));
 	_vehicle_status.is_rotary_wing = true;
 
+	_params.heli_rot = 0.0f;
 	_params.att_p.zero();
 	_params.rate_p.zero();
 	_params.rate_i.zero();
@@ -376,6 +379,7 @@ MulticopterAttitudeControl::MulticopterAttitudeControl() :
 
 	_I.identity();
 
+	_params_handles.heli_rot		=	param_find("MC_HELI_ROT");
 	_params_handles.roll_p			= 	param_find("MC_ROLL_P");
 	_params_handles.roll_rate_p		= 	param_find("MC_ROLLRATE_P");
 	_params_handles.roll_rate_i		= 	param_find("MC_ROLLRATE_I");
@@ -459,6 +463,10 @@ MulticopterAttitudeControl::parameters_update()
 
 	param_get(_params_handles.roll_tc, &roll_tc);
 	param_get(_params_handles.pitch_tc, &pitch_tc);
+
+	/* Heli rotation pitch/roll */
+	param_get(_params_handles.heli_rot, &v);
+	_params.heli_rot = v;
 
 	/* roll gains */
 	param_get(_params_handles.roll_p, &v);
@@ -978,6 +986,12 @@ MulticopterAttitudeControl::task_main()
 				_actuators.control[3] = (PX4_ISFINITE(_thrust_sp)) ? _thrust_sp : 0.0f;
 				_actuators.timestamp = hrt_absolute_time();
 				_actuators.timestamp_sample = _ctrl_state.timestamp;
+
+				/* Rotate */
+				float rollcmd =  _att_control(0)*cosf(_params.heli_rot*(float)M_PI/180) - _att_control(1)*sinf(_params.heli_rot*(float)M_PI/180);
+				float pitchcmd = _att_control(0)*sinf(_params.heli_rot*(float)M_PI/180) + _att_control(1)*cosf(_params.heli_rot*(float)M_PI/180);
+				_actuators.control[0] = (PX4_ISFINITE(rollcmd)) ? rollcmd : 0.0f;
+				_actuators.control[1] = (PX4_ISFINITE(pitchcmd)) ? pitchcmd : 0.0f;
 
 				_controller_status.roll_rate_integ = _rates_int(0);
 				_controller_status.pitch_rate_integ = _rates_int(1);
