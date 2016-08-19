@@ -40,6 +40,20 @@
  */
 
 /**
+ * Helicopter command rotation
+ *
+ * Reduce if the system is too twitchy, increase if the response is too slow and sluggish.
+ *
+ * @unit deg
+ * @min -180
+ * @max 180
+ * @decimal 0
+ * @increment 0.5
+ * @group Multicopter Attitude Control
+ */
+PARAMETER_DEFINE_FLOAT(MC_HELI_ROT, 0.0f);
+
+/**
  * Roll time constant
  *
  * Reduce if the system is too twitchy, increase if the response is too slow and sluggish.
