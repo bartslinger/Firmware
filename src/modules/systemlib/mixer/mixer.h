@@ -304,6 +304,15 @@ public:
 	 * The multirotor mixer definition is a single line of the form:
 	 *
 	 * R: <geometry> <roll scale> <pitch scale> <yaw scale> <deadband>
+     *
+     * Helicopter Mixer
+     * ................
+     *
+     * The helicopter mixer includes throttle and pitch curves
+     *
+     * H: <geometry>
+     * T: <0> <2500> <5000> <7500> <10000>
+     * C: <-10000> <-5000> <0> <5000> <10000>
 	 *
 	 * @param buf			The mixer configuration buffer.
 	 * @param buflen		The length of the buffer, updated to reflect
@@ -533,6 +542,83 @@ private:
 	/* do not allow to copy due to ptr data members */
 	MultirotorMixer(const MultirotorMixer &);
 	MultirotorMixer operator=(const MultirotorMixer &);
+};
+
+/**
+ * Supported helicopter geometries.
+ */
+typedef unsigned int HelicopterGeometryUnderlyingType;
+enum class HelicopterGeometry : HelicopterGeometryUnderlyingType {
+	HELI_BLADE130
+};
+
+/**
+ * Helicopter mixer for pre-defined vehicle geometries.
+ *
+ * Collects four inputs (roll, pitch, yaw, thrust) and mixes them to
+ * a set of outputs based on the configured geometry and throttle- and
+ * pitch curves.
+ */
+	class __EXPORT HelicopterMixer : public Mixer
+{
+public:
+	/**
+	 * Constructor.
+	 *
+	 * @param control_cb		Callback invoked to read inputs.
+	 * @param cb_handle		Passed to control_cb.
+	 * @param geometry		The selected geometry.
+	 * @param roll_scale		Scaling factor applied to roll inputs
+	 *				compared to thrust.
+	 * @param pitch_scale		Scaling factor applied to pitch inputs
+	 *				compared to thrust.
+	 * @param yaw_wcale		Scaling factor applied to yaw inputs compared
+	 *				to thrust.
+	 * @param idle_speed		Minimum rotor control output value; usually
+	 *				tuned to ensure that rotors never stall at the
+	 * 				low end of their control range.
+	 */
+	HelicopterMixer(ControlCallback control_cb,
+			uintptr_t cb_handle,
+			HelicopterGeometry geometry);
+	~HelicopterMixer();
+
+	/**
+	 * Factory method.
+	 *
+	 * Given a pointer to a buffer containing a text description of the mixer,
+	 * returns a pointer to a new instance of the mixer.
+	 *
+	 * @param control_cb		The callback to invoke when fetching a
+	 *				control value.
+	 * @param cb_handle		Handle passed to the control callback.
+	 * @param buf			Buffer containing a text description of
+	 *				the mixer.
+	 * @param buflen		Length of the buffer in bytes, adjusted
+	 *				to reflect the bytes consumed.
+	 * @return			A new HelicopterMixer instance, or nullptr
+	 *				if the text format is bad.
+	 */
+	static HelicopterMixer		*from_text(Mixer::ControlCallback control_cb,
+			uintptr_t cb_handle,
+			const char *buf,
+			unsigned &buflen);
+
+	virtual unsigned		mix(float *outputs, unsigned space, uint16_t *status_reg);
+	virtual void			groups_required(uint32_t &groups);
+
+private:
+//	float				_roll_scale;
+//	float				_pitch_scale;
+//	float				_yaw_scale;
+//	float				_idle_speed;
+
+//	orb_advert_t			_limits_pub;
+//	multirotor_motor_limits_s 	_limits;
+
+	/* do not allow to copy due to ptr data members */
+	HelicopterMixer(const HelicopterMixer &);
+	HelicopterMixer operator=(const HelicopterMixer &);
 };
 
 #endif
