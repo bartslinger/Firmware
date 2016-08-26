@@ -75,6 +75,11 @@ HelicopterMixer::HelicopterMixer(ControlCallback control_cb,
 				 HelicopterGeometry geometry) :
 	Mixer(control_cb, cb_handle)
 {
+	/* Initialize throttle and pitch curves with safe values */
+	for (int i = 0; i < HELI_CURVES_NR_POINTS; i++) {
+		_throttle_curve[i] = 0.0f;
+		_pitch_curve[i] = 0.0f;
+	}
 }
 
 HelicopterMixer::~HelicopterMixer()

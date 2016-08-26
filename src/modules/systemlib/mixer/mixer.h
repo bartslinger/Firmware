@@ -552,6 +552,7 @@ enum class HelicopterGeometry : HelicopterGeometryUnderlyingType {
 	HELI_BLADE130
 };
 
+#define HELI_CURVES_NR_POINTS 5
 /**
  * Helicopter mixer for pre-defined vehicle geometries.
  *
@@ -608,6 +609,8 @@ public:
 	virtual void			groups_required(uint32_t &groups);
 
 private:
+	float				_throttle_curve[HELI_CURVES_NR_POINTS];
+	float				_pitch_curve[HELI_CURVES_NR_POINTS];
 //	float				_roll_scale;
 //	float				_pitch_scale;
 //	float				_yaw_scale;
