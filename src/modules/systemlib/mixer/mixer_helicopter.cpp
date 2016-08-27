@@ -54,8 +54,8 @@
 
 #include "mixer.h"
 
-//#define debug(fmt, args...)	do { } while(0)
-#define debug(fmt, args...)	do { printf("[mixer] " fmt "\n", ##args); } while(0)
+#define debug(fmt, args...)	do { } while(0)
+//#define debug(fmt, args...)	do { printf("[mixer] " fmt "\n", ##args); } while(0)
 //#include <debug.h>
 //#define debug(fmt, args...)	lowsyslog(fmt "\n", ##args)
 
@@ -91,7 +91,8 @@ HelicopterMixer::from_text(Mixer::ControlCallback control_cb, uintptr_t cb_handl
 {
 	HelicopterGeometry geometry;
 	char geomname[8];
-	int s[4];
+	unsigned u[5];
+	int s[5];
 	int used;
 
 	/* enforce that the mixer ends with space or a new line */
@@ -112,8 +113,8 @@ HelicopterMixer::from_text(Mixer::ControlCallback control_cb, uintptr_t cb_handl
 
 	}
 
-	if (sscanf(buf, "R: %s %d %d %d %d%n", geomname, &s[0], &s[1], &s[2], &s[3], &used) != 5) {
-		debug("multirotor parse failed on '%s'", buf);
+	if (sscanf(buf, "H: %s%n", geomname, &used) != 1) {
+		debug("helicopter parse failed on '%s'", buf);
 		return nullptr;
 	}
 
@@ -129,11 +130,50 @@ HelicopterMixer::from_text(Mixer::ControlCallback control_cb, uintptr_t cb_handl
 		return nullptr;
 	}
 
+	buf = findtag(buf, buflen, 'T');
+
+	if ((buf == nullptr) || (buflen < 12)) {
+		debug("control parser failed finding tag, ret: '%s'", buf);
+		return nullptr;
+	}
+
+	if (sscanf(buf, "T: %d %d %d %d %d",
+		   &u[0], &u[1], &u[2], &u[3], &u[4]) != 5) {
+		debug("control parse failed on '%s'", buf);
+		return nullptr;
+	}
+
+	buf = skipline(buf, buflen);
+
+	if (buf == nullptr) {
+		debug("no line ending, line is incomplete");
+		return nullptr;
+	}
+
+	buf = findtag(buf, buflen, 'P');
+
+	if ((buf == nullptr) || (buflen < 12)) {
+		debug("control parser failed finding tag, ret: '%s'", buf);
+		return nullptr;
+	}
+
+	if (sscanf(buf, "P: %d %d %d %d %d",
+		   &s[0], &s[1], &s[2], &s[3], &s[4]) != 5) {
+		debug("control parse failed on '%s'", buf);
+		return nullptr;
+	}
+
+	buf = skipline(buf, buflen);
+
+	if (buf == nullptr) {
+		debug("no line ending, line is incomplete");
+		return nullptr;
+	}
+
 	debug("remaining in buf: %d, first char: %c", buflen, buf[0]);
 
 	if (!strcmp(geomname, "blade130")) {
 		geometry = HelicopterGeometry::HELI_BLADE130;
-
 	} else {
 		debug("unrecognised geometry '%s'", geomname);
 		return nullptr;
