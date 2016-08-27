@@ -32,9 +32,9 @@
  ****************************************************************************/
 
 /**
- * @file mixer_multirotor.cpp
+ * @file mixer_helicopter.cpp
  *
- * Multi-rotor mixers.
+ * Helicopter mixers.
  */
 #include <px4_config.h>
 #include <sys/types.h>
@@ -54,8 +54,8 @@
 
 #include "mixer.h"
 
-#define debug(fmt, args...)	do { } while(0)
-//#define debug(fmt, args...)	do { printf("[mixer] " fmt "\n", ##args); } while(0)
+//#define debug(fmt, args...)	do { } while(0)
+#define debug(fmt, args...)	do { printf("[mixer] " fmt "\n", ##args); } while(0)
 //#include <debug.h>
 //#define debug(fmt, args...)	lowsyslog(fmt "\n", ##args)
 

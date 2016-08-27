@@ -48,3 +48,5 @@ then
 
 	param set CBRK_IO_SAFETY 22027
 fi
+
+set HIL yes

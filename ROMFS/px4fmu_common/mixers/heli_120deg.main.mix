@@ -3,6 +3,10 @@ Blade 130x helicopter has longer servo arms left and right. The front servo arm 
 Therefore it is not required to use the 0.866 factor.
 ==================================================
 
+H: blade130
+T: 0 1 2 3 4
+P: -2 -1 0 1 2
+
 Output 0 - Left Servo Mixer
 -----------------
 Left Servo = Collective (Thurst - 3) - 0.5 * Elevator (Pitch - 1) + Aileron (Roll - 0)
