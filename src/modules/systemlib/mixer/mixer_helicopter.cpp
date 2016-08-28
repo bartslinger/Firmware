@@ -59,7 +59,7 @@
 //#include <debug.h>
 //#define debug(fmt, args...)	lowsyslog(fmt "\n", ##args)
 
-/*
+
 namespace
 {
 
@@ -69,16 +69,18 @@ float constrain(float val, float min, float max)
 }
 
 } // anonymous namespace
-*/
+
 HelicopterMixer::HelicopterMixer(ControlCallback control_cb,
 				 uintptr_t cb_handle,
-				 HelicopterGeometry geometry) :
+				 HelicopterGeometry geometry,
+				 unsigned throttle_curve[HELI_CURVES_NR_POINTS],
+				 int pitch_curve[HELI_CURVES_NR_POINTS]) :
 	Mixer(control_cb, cb_handle)
 {
 	/* Initialize throttle and pitch curves with safe values */
 	for (int i = 0; i < HELI_CURVES_NR_POINTS; i++) {
-		_throttle_curve[i] = 0.0f;
-		_pitch_curve[i] = 0.0f;
+		_throttle_curve[i] = throttle_curve[i];
+		_pitch_curve[i] = pitch_curve[i];
 	}
 }
 
@@ -137,7 +139,7 @@ HelicopterMixer::from_text(Mixer::ControlCallback control_cb, uintptr_t cb_handl
 		return nullptr;
 	}
 
-	if (sscanf(buf, "T: %d %d %d %d %d",
+	if (sscanf(buf, "T: %u %u %u %u %u",
 		   &u[0], &u[1], &u[2], &u[3], &u[4]) != 5) {
 		debug("control parse failed on '%s'", buf);
 		return nullptr;
@@ -184,12 +186,44 @@ HelicopterMixer::from_text(Mixer::ControlCallback control_cb, uintptr_t cb_handl
 	return new HelicopterMixer(
 			   control_cb,
 			   cb_handle,
-			   geometry);
+			   geometry,
+			   u,
+			   s);
 }
 
 unsigned
 HelicopterMixer::mix(float *outputs, unsigned space, uint16_t *status_reg)
 {
+	/* Find index to use for curves */
+	float thrust = get_control(0,3);
+	int idx = (thrust / 0.25f);
+	if (idx < 0) idx = 0;
+	if (idx > HELI_CURVES_NR_POINTS-1) idx = HELI_CURVES_NR_POINTS-1;
+
+	/* Local throttle curve gradient and offset */
+	float tg = (_throttle_curve[idx+1] - _throttle_curve[idx]) / 0.25f;
+	float to = (_throttle_curve[idx]) - (tg * idx * 0.25f);
+	float throttle = constrain((tg*thrust+to) / 10000.0f, 0.0f, 1.0f);
+
+	/* Local pitch curve gradient and offset */
+	float pg = (_pitch_curve[idx+1] - _pitch_curve[idx])/ 0.25f;
+	float po = (_pitch_curve[idx]) - (pg * idx * 0.25f);
+	float collective_pitch = constrain((pg*thrust+po) / 10000.0f, -0.5f, 0.5f);
+	//collective_pitch = thrust * 0.5f;
+
+	float roll_cmd = get_control(0,0);
+	float pitch_cmd = get_control(0,1);
+
+	float left_servo = collective_pitch + constrain(roll_cmd, -0.5f, 0.5f) - constrain(pitch_cmd, -0.5f, 0.5f);
+	float front_servo = collective_pitch + constrain(pitch_cmd, -0.5f, 0.5f);
+	float right_servo = collective_pitch - constrain(roll_cmd, -0.5f, 0.5f) - constrain(pitch_cmd, -0.5f, 0.5f);
+
+	outputs[0] = left_servo;
+	outputs[1] = front_servo;
+	outputs[2] = right_servo;
+	outputs[3] = get_control(0,2);
+	outputs[4] = throttle;
+
 	return 5;
 }
 

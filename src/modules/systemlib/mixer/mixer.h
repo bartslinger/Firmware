@@ -581,7 +581,7 @@ public:
 	 */
 	HelicopterMixer(ControlCallback control_cb,
 			uintptr_t cb_handle,
-			HelicopterGeometry geometry);
+			HelicopterGeometry geometry, unsigned throttle_curve[], int pitch_curve[]);
 	~HelicopterMixer();
 
 	/**
@@ -609,7 +609,7 @@ public:
 	virtual void			groups_required(uint32_t &groups);
 
 private:
-	float				_throttle_curve[HELI_CURVES_NR_POINTS];
+	unsigned			_throttle_curve[HELI_CURVES_NR_POINTS];
 	float				_pitch_curve[HELI_CURVES_NR_POINTS];
 //	float				_roll_scale;
 //	float				_pitch_scale;
