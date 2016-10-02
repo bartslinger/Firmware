@@ -304,15 +304,20 @@ public:
 	 * The multirotor mixer definition is a single line of the form:
 	 *
 	 * R: <geometry> <roll scale> <pitch scale> <yaw scale> <deadband>
-     *
-     * Helicopter Mixer
-     * ................
-     *
-     * The helicopter mixer includes throttle and pitch curves
-     *
-     * H: <geometry>
-     * T: <0> <2500> <5000> <7500> <10000>
-     * C: <-10000> <-5000> <0> <5000> <10000>
+	 *
+	 * Helicopter Mixer
+	 * ................
+	 *
+	 * The helicopter mixer includes throttle and pitch curves
+	 *
+	 * H: <swash plate servo count>
+	 * T: <0> <2500> <5000> <7500> <10000>
+	 * P: <-10000> <-5000> <0> <5000> <10000>
+	 *
+	 * The definition continues with <swash plate servo count> entries describing
+	 * the position of the servo, in the following form:
+	 *
+	 *   S: <angle (deg)> <normalized arm length> <scale> <offset> <lower limit> <upper limit>
 	 *
 	 * @param buf			The mixer configuration buffer.
 	 * @param buflen		The length of the buffer, updated to reflect
@@ -544,15 +549,26 @@ private:
 	MultirotorMixer operator=(const MultirotorMixer &);
 };
 
-/**
- * Supported helicopter geometries.
- */
-typedef unsigned int HelicopterGeometryUnderlyingType;
-enum class HelicopterGeometry : HelicopterGeometryUnderlyingType {
-	HELI_BLADE130
+/** helicopter swash servo mixer */
+struct mixer_heli_servo_s {
+	float angle;
+	float arm_length;
+	float scale;
+	float offset;
+	float min_output;
+	float max_output;
 };
 
 #define HELI_CURVES_NR_POINTS 5
+
+/** helicopter swash plate mixer */
+struct mixer_heli_s {
+	uint8_t				control_count;	/**< number of inputs */
+	float				throttle_curve[HELI_CURVES_NR_POINTS];
+	float				pitch_curve[HELI_CURVES_NR_POINTS];
+	struct mixer_heli_servo_s	servos[4];	/**< up to four inputs */
+};
+
 /**
  * Helicopter mixer for pre-defined vehicle geometries.
  *
@@ -581,7 +597,7 @@ public:
 	 */
 	HelicopterMixer(ControlCallback control_cb,
 			uintptr_t cb_handle,
-			HelicopterGeometry geometry, unsigned throttle_curve[], int pitch_curve[]);
+			mixer_heli_s *mixer_info);
 	~HelicopterMixer();
 
 	/**
@@ -609,12 +625,7 @@ public:
 	virtual void			groups_required(uint32_t &groups);
 
 private:
-	unsigned			_throttle_curve[HELI_CURVES_NR_POINTS];
-	float				_pitch_curve[HELI_CURVES_NR_POINTS];
-//	float				_roll_scale;
-//	float				_pitch_scale;
-//	float				_yaw_scale;
-//	float				_idle_speed;
+	mixer_heli_s			_mixer_info;
 
 //	orb_advert_t			_limits_pub;
 //	multirotor_motor_limits_s 	_limits;

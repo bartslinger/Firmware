@@ -54,10 +54,10 @@
 
 #include "mixer.h"
 
-#define debug(fmt, args...)	do { } while(0)
+//#define debug(fmt, args...)	do { } while(0)
 //#define debug(fmt, args...)	do { printf("[mixer] " fmt "\n", ##args); } while(0)
-//#include <debug.h>
-//#define debug(fmt, args...)	lowsyslog(fmt "\n", ##args)
+#include <debug.h>
+#define debug(fmt, args...)	lowsyslog(fmt "\n", ##args)
 
 
 namespace
@@ -72,16 +72,11 @@ float constrain(float val, float min, float max)
 
 HelicopterMixer::HelicopterMixer(ControlCallback control_cb,
 				 uintptr_t cb_handle,
-				 HelicopterGeometry geometry,
-				 unsigned throttle_curve[HELI_CURVES_NR_POINTS],
-				 int pitch_curve[HELI_CURVES_NR_POINTS]) :
-	Mixer(control_cb, cb_handle)
+				 mixer_heli_s *mixer_info) :
+	Mixer(control_cb, cb_handle),
+	_mixer_info(*mixer_info)
 {
-	/* Initialize throttle and pitch curves with safe values */
-	for (int i = 0; i < HELI_CURVES_NR_POINTS; i++) {
-		_throttle_curve[i] = throttle_curve[i];
-		_pitch_curve[i] = pitch_curve[i];
-	}
+
 }
 
 HelicopterMixer::~HelicopterMixer()
@@ -91,8 +86,8 @@ HelicopterMixer::~HelicopterMixer()
 HelicopterMixer *
 HelicopterMixer::from_text(Mixer::ControlCallback control_cb, uintptr_t cb_handle, const char *buf, unsigned &buflen)
 {
-	HelicopterGeometry geometry;
-	char geomname[8];
+	mixer_heli_s mixer_info;
+	unsigned swash_plate_servo_count = 0;
 	unsigned u[5];
 	int s[5];
 	int used;
@@ -115,13 +110,18 @@ HelicopterMixer::from_text(Mixer::ControlCallback control_cb, uintptr_t cb_handl
 
 	}
 
-	if (sscanf(buf, "H: %s%n", geomname, &used) != 1) {
+	if (sscanf(buf, "H: %u%n", &swash_plate_servo_count, &used) != 1) {
 		debug("helicopter parse failed on '%s'", buf);
 		return nullptr;
 	}
 
+	if (swash_plate_servo_count < 3 || swash_plate_servo_count > 4) {
+		debug("only supporting swash plate with 3 or 4 servos");
+		return nullptr;
+	}
+
 	if (used > (int)buflen) {
-		debug("OVERFLOW: multirotor spec used %d of %u", used, buflen);
+		debug("OVERFLOW: helicopter spec used %d of %u", used, buflen);
 		return nullptr;
 	}
 
@@ -145,6 +145,10 @@ HelicopterMixer::from_text(Mixer::ControlCallback control_cb, uintptr_t cb_handl
 		return nullptr;
 	}
 
+	for (unsigned i = 0; i < HELI_CURVES_NR_POINTS; i++) {
+		mixer_info.throttle_curve[i] = ((float) u[i]) / 10000.0f;
+	}
+
 	buf = skipline(buf, buflen);
 
 	if (buf == nullptr) {
@@ -165,6 +169,10 @@ HelicopterMixer::from_text(Mixer::ControlCallback control_cb, uintptr_t cb_handl
 		return nullptr;
 	}
 
+	for (unsigned i = 0; i < HELI_CURVES_NR_POINTS; i++) {
+		mixer_info.pitch_curve[i] = ((float) s[i]) / 10000.0f;
+	}
+
 	buf = skipline(buf, buflen);
 
 	if (buf == nullptr) {
@@ -172,59 +180,96 @@ HelicopterMixer::from_text(Mixer::ControlCallback control_cb, uintptr_t cb_handl
 		return nullptr;
 	}
 
-	debug("remaining in buf: %d, first char: %c", buflen, buf[0]);
+	mixer_info.control_count = swash_plate_servo_count;
 
-	if (!strcmp(geomname, "blade130")) {
-		geometry = HelicopterGeometry::HELI_BLADE130;
-	} else {
-		debug("unrecognised geometry '%s'", geomname);
-		return nullptr;
+	/* Now loop through the servos */
+	for (unsigned i = 0; i < mixer_info.control_count; i++) {
+
+		buf = findtag(buf, buflen, 'S');
+
+		if ((buf == nullptr) || (buflen < 12)) {
+			debug("control parser failed finding tag, ret: '%s'", buf);
+			return nullptr;
+		}
+
+		if (sscanf(buf, "S: %u %u %d %d %d %d",
+			   &u[0],
+			   &u[1],
+			   &s[0],
+			   &s[1],
+			   &s[2],
+			   &s[3]) != 6) {
+			debug("control parse failed on '%s'", buf);
+			return nullptr;
+		}
+
+		mixer_info.servos[i].angle = ((float) u[0]) * M_PI_F / 180.0f;
+		mixer_info.servos[i].arm_length = ((float) u[1]) / 10000.0f;
+		mixer_info.servos[i].scale = ((float) s[0]) / 10000.0f;
+		mixer_info.servos[i].offset = ((float) s[1]) / 10000.0f;
+		mixer_info.servos[i].min_output = ((float) s[2]) / 10000.0f;
+		mixer_info.servos[i].max_output = ((float) s[3]) / 10000.0f;
+
+		buf = skipline(buf, buflen);
+
+		if (buf == nullptr) {
+			debug("no line ending, line is incomplete");
+			return nullptr;
+		}
 	}
 
-	debug("adding multirotor mixer '%s'", geomname);
+	debug("remaining in buf: %d, first char: %c", buflen, buf[0]);
 
-	return new HelicopterMixer(
-			   control_cb,
-			   cb_handle,
-			   geometry,
-			   u,
-			   s);
+	HelicopterMixer *hm = new HelicopterMixer(
+		control_cb,
+		cb_handle,
+		&mixer_info);
+
+	if (hm != nullptr) {
+		debug("loaded heli mixer with %d swash plate input(s)", mixer_info.control_count);
+
+	} else {
+		debug("could not allocate memory for mixer");
+	}
+
+	return hm;
 }
 
 unsigned
 HelicopterMixer::mix(float *outputs, unsigned space, uint16_t *status_reg)
 {
 	/* Find index to use for curves */
-	float thrust = get_control(0,3);
-	int idx = (thrust / 0.25f);
-	if (idx < 0) idx = 0;
-	if (idx > HELI_CURVES_NR_POINTS-1) idx = HELI_CURVES_NR_POINTS-1;
+	float thrust_cmd = get_control(0, 3);
+	int idx = (thrust_cmd / 0.25f);
+
+	/* Make sure idx is in range */
+	if (idx < 0) { idx = 0; }
+
+	if (idx > HELI_CURVES_NR_POINTS - 1) { idx = HELI_CURVES_NR_POINTS - 1; }
 
 	/* Local throttle curve gradient and offset */
-	float tg = (_throttle_curve[idx+1] - _throttle_curve[idx]) / 0.25f;
-	float to = (_throttle_curve[idx]) - (tg * idx * 0.25f);
-	float throttle = constrain((tg*thrust+to) / 10000.0f, 0.0f, 1.0f);
+	float tg = (_mixer_info.throttle_curve[idx + 1] - _mixer_info.throttle_curve[idx]) / 0.25f;
+	float to = (_mixer_info.throttle_curve[idx]) - (tg * idx * 0.25f);
+	float throttle = constrain((tg * thrust_cmd + to), 0.0f, 1.0f);
 
 	/* Local pitch curve gradient and offset */
-	float pg = (_pitch_curve[idx+1] - _pitch_curve[idx])/ 0.25f;
-	float po = (_pitch_curve[idx]) - (pg * idx * 0.25f);
-	float collective_pitch = constrain((pg*thrust+po) / 10000.0f, -0.5f, 0.5f);
-	//collective_pitch = thrust * 0.5f;
+	float pg = (_mixer_info.pitch_curve[idx + 1] - _mixer_info.pitch_curve[idx]) / 0.25f;
+	float po = (_mixer_info.pitch_curve[idx]) - (pg * idx * 0.25f);
+	float collective_pitch = constrain((pg * thrust_cmd + po), -0.5f, 0.5f);
 
-	float roll_cmd = get_control(0,0);
-	float pitch_cmd = get_control(0,1);
+	float roll_cmd = get_control(0, 0);
+	float pitch_cmd = get_control(0, 1);
 
-	float left_servo = collective_pitch + constrain(roll_cmd, -0.5f, 0.5f) - constrain(pitch_cmd, -0.5f, 0.5f);
-	float front_servo = collective_pitch + constrain(pitch_cmd, -0.5f, 0.5f);
-	float right_servo = collective_pitch - constrain(roll_cmd, -0.5f, 0.5f) - constrain(pitch_cmd, -0.5f, 0.5f);
+	outputs[0] = throttle;
+	for (unsigned i = 0; i < _mixer_info.control_count; i++) {
+		outputs[i+1] = collective_pitch
+				+ cosf(_mixer_info.servos[i].angle) * pitch_cmd * _mixer_info.servos[i].arm_length
+				- sinf(_mixer_info.servos[i].angle) * roll_cmd * _mixer_info.servos[i].arm_length;
+		outputs[i+1] *= _mixer_info.servos[i].scale;
+		outputs[i+1] = constrain(outputs[i+1], _mixer_info.servos[i].min_output, _mixer_info.servos[i].max_output);
+	}
 
-	outputs[0] = left_servo;
-	outputs[1] = front_servo;
-	outputs[2] = right_servo;
-	outputs[3] = get_control(0,2);
-	outputs[4] = throttle;
-
-	return 5;
+	return _mixer_info.control_count + 1;
 }
 
 void
