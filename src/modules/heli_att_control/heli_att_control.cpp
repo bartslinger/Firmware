@@ -419,9 +419,9 @@ HelicopterAttitudeControl::control_attitude_rates(float dt)
 
 	/* Propagate first order filter which has the vbar angles in body frame */
 	float alpha = 1.0f - (dt / (_params.hiller_decay + dt)); // Hiller decay is time constant in seconds
-	_integral(0) += rates(0) * dt;
+	_integral(0) -= rates(0) * dt;
 	_integral(0) *= alpha;
-	_integral(1) += rates(1) * dt;
+	_integral(1) -= rates(1) * dt;
 	_integral(1) *= alpha;
 
 	/* Calculate pitch and roll commands */

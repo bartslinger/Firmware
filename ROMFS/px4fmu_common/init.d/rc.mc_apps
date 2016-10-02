@@ -29,7 +29,7 @@ then
 fi
 #---------------------------------------
 
-mc_att_control start
+heli_att_control start
 
 mc_pos_control start
 
