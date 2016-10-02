@@ -195,6 +195,7 @@ private:
 	math::Vector<3>				_rates_sp;		/**< angular rates setpoint */
 	float					_thrust_sp;		/**< thrust setpoint */
 	math::Vector<3>				_att_control;		/**< attitude control vector */
+	math::Vector<3>				_integral;		/**< integrators for rate control */
 	math::Matrix<3, 3>			_I;			/**< identity matrix */
 
 	struct {

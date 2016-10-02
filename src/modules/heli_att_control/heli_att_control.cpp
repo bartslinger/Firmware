@@ -108,6 +108,7 @@ HelicopterAttitudeControl::HelicopterAttitudeControl() :
 
 	_rates_sp.zero();
 	_att_control.zero();
+	_integral.zero();
 	_I.identity();
 
 	_params_handles.roll_p		= param_find("HELI_ROLL_P");
@@ -404,6 +405,9 @@ HelicopterAttitudeControl::control_attitude(float dt)
 void
 HelicopterAttitudeControl::control_attitude_rates(float dt)
 {
+	/* Keep track of previous rates for differentiation */
+	static math::Vector<3> prev_rates = { 0.0f, 0.0f, 0.0f };
+
 	/* current body angular rates */
 	math::Vector<3> rates;
 	rates(0) = _ctrl_state.roll_rate;
@@ -411,7 +415,27 @@ HelicopterAttitudeControl::control_attitude_rates(float dt)
 	rates(2) = _ctrl_state.yaw_rate;
 
 	/* angular rates error */
-	//math::Vector<3> rates_err = _rates_sp - rates;
+	math::Vector<3> rates_err = _rates_sp - rates;
+
+	/* Propagate first order filter which has the vbar angles in body frame */
+	float alpha = 1.0f - (dt / (_params.hiller_decay + dt)); // Hiller decay is time constant in seconds
+	_integral(0) += rates(0) * dt;
+	_integral(0) *= alpha;
+	_integral(1) += rates(1) * dt;
+	_integral(1) *= alpha;
+
+	/* Calculate pitch and roll commands */
+	_att_control(0) = _integral(0) * _params.hiller_gain(0);
+	_att_control(1) = _integral(1) * _params.hiller_gain(1);
+
+	/* Propagate yaw integrator */
+	_integral(2) += _params.yawrate_i * dt;
+
+	/* Calculate yaw command, similar to mc_att_control */
+	_att_control(2) = _params.yawrate_p * rates_err(2) + _params.yawrate_d * (prev_rates(2) - rates(2)) / dt +
+			_integral(2) + _params.yawrate_ff * _rates_sp(2);
+
+	prev_rates = rates;
 }
 
 /**
