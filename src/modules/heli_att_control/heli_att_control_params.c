@@ -38,3 +38,75 @@
  * @author Bart Slinger <bartslinger@gmail.com>
  */
 
+/**
+ * Roll P gain
+ *
+ * Roll proportional gain, i.e. desired angular speed in rad/s for error 1 rad.
+ *
+ * @group Helicopter Attitude Control
+ */
+PARAM_DEFINE_FLOAT(HELI_ROLL_P, 0.0f);
+
+/**
+ * Pitch P gain
+ *
+ * Pitch proportional gain, i.e. desired angular speed in rad/s for error 1 rad.
+ *
+ * @group Helicopter Attitude Control
+ */
+PARAM_DEFINE_FLOAT(HELI_PITCH_P, 0.0f);
+
+/**
+ * Roll damping gain
+ *
+ * @group Helicopter Attitude Control
+ */
+PARAM_DEFINE_FLOAT(HELI_ROLL_D, 0.0f);
+
+/**
+ * Pitch damping gain
+ *
+ * @group Helicopter Attitude Control
+ */
+PARAM_DEFINE_FLOAT(HELI_PITCH_D, 0.0f);
+
+/**
+ * Roll hiller gain
+ *
+ *
+ * @group Helicopter Attitude Control
+ */
+PARAM_DEFINE_FLOAT(HELI_ROLL_H, 0.0f);
+
+/**
+ * Pitch hiller gain
+ *
+ *
+ * @group Helicopter Attitude Control
+ */
+PARAM_DEFINE_FLOAT(HELI_PITCH_H, 0.0f);
+
+/**
+ * VBar decay
+ *
+ * @group Helicopter Attitude Control
+ */
+PARAM_DEFINE_FLOAT(VBAR_DECAY, 0.0f);
+
+/**
+ * Roll effectiveness
+ *
+ * How much roll rate (rad/s) can be expected per raw roll command
+ *
+ * @group Helicopter Attitude Control
+ */
+PARAM_DEFINE_FLOAT(HELI_ROLL_E);
+
+/**
+ * Pitch effectiveness
+ *
+ * How much pitch rate (rad/s) can be expected per raw pitch command
+ *
+ * @group Helicopter Attitude Control
+ */
+PARAM_DEFINE_FLOAT(HELI_PITCH_E);

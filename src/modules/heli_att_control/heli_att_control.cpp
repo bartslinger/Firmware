@@ -111,11 +111,23 @@ HelicopterAttitudeControl::HelicopterAttitudeControl() :
 	_I.identity();
 
 	_params_handles.roll_p		= param_find("HELI_ROLL_P");
-	_params_handles.pitch_p		= param_find("HELI_PITCH_P");
-	_params_handles.yaw_p		= param_find("HELI_YAW_P");
 	_params_handles.roll_rate_p	= param_find("HELI_ROLL_D");
+	_params_handles.roll_hiller_gain	= param_find("HELI_ROLL_H");
+	_params_handles.roll_effectiveness	= param_find("HELI_ROLL_E");
+
+	_params_handles.pitch_p		= param_find("HELI_PITCH_P");
 	_params_handles.pitch_rate_p	= param_find("HELI_PITCH_D");
-	_params_handles.yaw_rate_p	= param_find("HELI_YAW_D");
+	_params_handles.pitch_hiller_gain	= param_find("HELI_PITCH_H");
+	_params_handles.pitch_effectiveness	= param_find("HELI_PITCH_E");
+
+	_params_handles.hiller_decay	= param_find("VBAR_DECAY");
+
+	_params_handles.yaw_p		= param_find("MC_YAW_P");
+	_params_handles.yaw_rate_p	= param_find("MC_YAWRATE_P");
+	_params_handles.yaw_rate_i	= param_find("MC_YAWRATE_I");
+	_params_handles.yaw_rate_d	= param_find("MC_YAWRATE_D");
+	_params_handles.yaw_rate_ff	= param_find("MC_YAWRATE_FF");
+
 	_params_handles.roll_rate_max	= param_find("MC_ROLLRATE_MAX");
 	_params_handles.pitch_rate_max	= param_find("MC_PITCHRATE_MAX");
 	_params_handles.yaw_rate_max	= param_find("MC_YAWRATE_MAX");
@@ -488,21 +500,37 @@ void HelicopterAttitudeControl::parameters_update()
 {
 	float v;
 
-	/* P gains on attitude*/
+	/* Roll gains */
 	param_get(_params_handles.roll_p, &v);
 	_params.att_p(0) = v;
-	param_get(_params_handles.pitch_p, &v);
-	_params.att_p(1) = v;
-	param_get(_params_handles.yaw_p, &v);
-	_params.att_p(2) = v;
-
-	/* P gains on rate */
 	param_get(_params_handles.roll_rate_p, &v);
 	_params.rate_p(0) = v;
+	param_get(_params_handles.roll_hiller_gain, &v);
+	_params.hiller_gain(0) = v;
+	param_get(_params_handles.roll_effectiveness, &v);
+	_params.rate_effectiveness(0) = v;
+
+	/* Pitch gains */
+	param_get(_params_handles.pitch_p, &v);
+	_params.att_p(1) = v;
 	param_get(_params_handles.pitch_rate_p, &v);
 	_params.rate_p(1) = v;
-	param_get(_params_handles.yaw_rate_p, &v);
-	_params.rate_p(2) = v;
+	param_get(_params_handles.pitch_hiller_gain, &v);
+	_params.hiller_gain(1) = v;
+	param_get(_params_handles.pitch_effectiveness, &v);
+	_params.rate_effectiveness(1) = v;
+
+	/* VBar decay */
+	param_get(_params_handles.hiller_decay, &v);
+	_params.hiller_decay = v;
+
+	/* Yaw gains */
+	param_get(_params_handles.yaw_p, &v);
+	_params.att_p(2) = v;
+	param_get(_params_handles.yaw_rate_p, &_params.yawrate_p);
+	param_get(_params_handles.yaw_rate_i, &_params.yawrate_i);
+	param_get(_params_handles.yaw_rate_d, &_params.yawrate_d);
+	param_get(_params_handles.yaw_rate_ff, &_params.yawrate_ff);
 
 	/* angular rate limits */
 	param_get(_params_handles.roll_rate_max, &_params.roll_rate_max);

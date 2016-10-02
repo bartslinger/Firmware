@@ -199,12 +199,22 @@ private:
 
 	struct {
 		param_t roll_p;
-		param_t pitch_p;
-		param_t yaw_p;
-
 		param_t roll_rate_p;
+		param_t roll_hiller_gain;
+		param_t roll_effectiveness;
+
+		param_t pitch_p;
 		param_t pitch_rate_p;
+		param_t pitch_hiller_gain;
+		param_t pitch_effectiveness;
+
+		param_t hiller_decay;
+
+		param_t yaw_p;
 		param_t yaw_rate_p;
+		param_t yaw_rate_i;
+		param_t yaw_rate_d;
+		param_t yaw_rate_ff;
 
 		param_t roll_rate_max;
 		param_t pitch_rate_max;
@@ -219,7 +229,16 @@ private:
 
 	struct {
 		math::Vector<3>			att_p;			/**< P gain on attitude error */
-		math::Vector<3>			rate_p;			/**< P gain for angular rate error */
+		math::Vector<2>			rate_p;			/**< P gain for angular rate error */
+		math::Vector<2>			hiller_gain;		/**< Hiller gains */
+		math::Vector<2>			rate_effectiveness;	/**< Effectiveness of commands on pitch/roll rates */
+		float				hiller_decay;		/**< Time constant of virtual flybar */
+
+		float				yawrate_p;
+		float				yawrate_i;
+		float				yawrate_d;
+		float				yawrate_ff;
+
 		float				roll_rate_max;
 		float				pitch_rate_max;
 		float				yaw_rate_max;
