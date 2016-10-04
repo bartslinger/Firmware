@@ -425,11 +425,11 @@ HelicopterAttitudeControl::control_attitude_rates(float dt)
 	_integral(1) *= alpha;
 
 	/* Calculate pitch and roll commands */
-	_att_control(0) = _integral(0) * _params.hiller_gain(0);
-	_att_control(1) = _integral(1) * _params.hiller_gain(1);
+	_att_control(0) = _rates_sp(0) * _params.rate_effectiveness(0) - rates(0) * _params.rate_p(0) + _integral(0) * _params.hiller_gain(0);
+	_att_control(1) = _rates_sp(1) * _params.rate_effectiveness(1) - rates(1) * _params.rate_p(1) + _integral(1) * _params.hiller_gain(1);
 
 	/* Propagate yaw integrator */
-	_integral(2) += _params.yawrate_i * dt;
+	_integral(2) += rates_err(2) * _params.yawrate_i * dt;
 
 	/* Calculate yaw command, similar to mc_att_control */
 	_att_control(2) = _params.yawrate_p * rates_err(2) + _params.yawrate_d * (prev_rates(2) - rates(2)) / dt +

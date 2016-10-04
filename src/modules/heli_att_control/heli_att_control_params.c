@@ -100,7 +100,7 @@ PARAM_DEFINE_FLOAT(VBAR_DECAY, 0.0f);
  *
  * @group Helicopter Attitude Control
  */
-PARAM_DEFINE_FLOAT(HELI_ROLL_E);
+PARAM_DEFINE_FLOAT(HELI_ROLL_E, 0.0f);
 
 /**
  * Pitch effectiveness
@@ -109,4 +109,4 @@ PARAM_DEFINE_FLOAT(HELI_ROLL_E);
  *
  * @group Helicopter Attitude Control
  */
-PARAM_DEFINE_FLOAT(HELI_PITCH_E);
+PARAM_DEFINE_FLOAT(HELI_PITCH_E, 0.0f);
