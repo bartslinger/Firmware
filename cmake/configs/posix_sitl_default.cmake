@@ -72,6 +72,8 @@ set(config_module_list
 	modules/simulator
 	#modules/uavcan
 
+	modules/sequential_work_flow
+
 	#
 	# Estimation modules
 	#

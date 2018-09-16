@@ -70,6 +70,8 @@
 #include "PositionControl.hpp"
 #include "Utility/ControlMath.hpp"
 
+#include "sequential_work_flow/SequentialWorkFlow.hpp"
+
 /**
  * Multicopter position control app start / stop handling function
  *
@@ -77,7 +79,7 @@
  */
 extern "C" __EXPORT int mc_pos_control_main(int argc, char *argv[]);
 
-class MulticopterPositionControl : public control::SuperBlock, public ModuleParams
+class MulticopterPositionControl : public control::SuperBlock, public ModuleParams, public SequentialModule
 {
 public:
 	/**
@@ -291,6 +293,10 @@ private:
 	 * Main sensor collection task.
 	 */
 	void		task_main();
+
+	int		_silly_variable{20};
+	int		swf_init_function();
+	int		swf_loop_function();
 };
 
 namespace pos_control
@@ -301,6 +307,7 @@ MulticopterPositionControl	*g_control;
 MulticopterPositionControl::MulticopterPositionControl() :
 	SuperBlock(nullptr, "MPC"),
 	ModuleParams(nullptr),
+	SequentialModule(),
 	_vel_x_deriv(this, "VELD"),
 	_vel_y_deriv(this, "VELD"),
 	_vel_z_deriv(this, "VELD"),
@@ -1173,6 +1180,16 @@ void MulticopterPositionControl::send_vehicle_cmd_do(uint8_t nav_state)
 	}
 }
 
+int
+MulticopterPositionControl::swf_init_function() {
+	return _silly_variable++;
+}
+
+int
+MulticopterPositionControl::swf_loop_function() {
+	return 10;
+}
+
 int mc_pos_control_main(int argc, char *argv[])
 {
 	if (argc < 2) {
@@ -1224,6 +1241,22 @@ int mc_pos_control_main(int argc, char *argv[])
 			warnx("not running");
 			return 1;
 		}
+	}
+
+	if (!strcmp(argv[1], "register")) {
+		warnx("REGISTERRRRRRRRRRRRRRR");
+		if (pos_control::g_control == nullptr) {
+			pos_control::g_control = new MulticopterPositionControl;
+		}
+		int fd = px4_open("/dev/swf0", O_WRONLY);
+		char buf[] = "HALLO vanaf hier";
+		sequential_workflow::registration reg;
+		reg.wakeup_fd = 1;
+		reg.stack_size = 1024;
+		reg.module = pos_control::g_control;
+		ssize_t written = px4_write(fd, (const char *)&reg, sizeof(buf));
+		warnx("written %zd", written);
+		return 0;
 	}
 
 	warnx("unrecognized command");

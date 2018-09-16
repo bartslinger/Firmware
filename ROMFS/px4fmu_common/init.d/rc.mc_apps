@@ -52,12 +52,14 @@ fi
 #
 # Start Multicopter Attitude Controller.
 #
+swf init
 mc_att_control start
 
 #
 # Start Multicopter Position Controller.
 #
-mc_pos_control start
+mc_pos_control register
+mc_pos_control register
 
 #
 # Start Multicopter Land Detector.
