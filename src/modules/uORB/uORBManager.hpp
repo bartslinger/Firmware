@@ -359,6 +359,8 @@ public:
 	 */
 	int	orb_get_interval(int handle, unsigned *interval);
 
+	int	orb_register_callback(int handle, orb_callback_link *cb_link);
+
 #ifdef ORB_COMMUNICATOR
 	/**
 	 * Method to set the uORBCommunicator::IChannel instance.

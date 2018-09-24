@@ -44,6 +44,17 @@
 #include <stdbool.h>
 
 
+// Required for Linux
+#define FAR
+
+typedef void (*orb_callback)(int fd);
+
+struct orb_callback_link {
+	FAR struct orb_callback_link *flink;
+	FAR struct orb_callback_link *blink;
+	orb_callback cb;
+};
+
 /**
  * Object metadata.
  */
@@ -249,6 +260,8 @@ extern int	orb_set_interval(int handle, unsigned interval) __EXPORT;
  * @see uORB::Manager::orb_get_interval()
  */
 extern int	orb_get_interval(int handle, unsigned *interval) __EXPORT;
+
+extern int	orb_register_callback(int handle, struct orb_callback_link *cb_link) __EXPORT;
 
 __END_DECLS
 

@@ -38,6 +38,7 @@
 
 #include <lib/cdev/CDev.hpp>
 
+
 namespace uORB
 {
 class DeviceNode;
@@ -211,6 +212,8 @@ private:
 	bool _published{false};  /**< has ever data been published */
 	uint8_t _queue_size; /**< maximum number of elements in the queue */
 	int8_t _subscriber_count{0};
+
+	orb_callback_link *_first_callback_link = nullptr;
 
 	inline static SubscriberData    *filp_to_sd(cdev::file_t *filp);
 

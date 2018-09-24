@@ -294,6 +294,11 @@ uORB::DeviceNode::write(cdev::file_t *filp, const char *buffer, size_t buflen)
 	/* notify any poll waiters */
 	poll_notify(POLLIN);
 
+	// callbacks
+	if (_first_callback_link != nullptr) {
+		_first_callback_link->cb(0);
+	}
+
 	return _meta->o_size;
 }
 
@@ -383,6 +388,12 @@ uORB::DeviceNode::ioctl(cdev::file_t *filp, int cmd, unsigned long arg)
 	case ORBIOCISPUBLISHED:
 		*(unsigned long *)arg = _published;
 
+		return OK;
+
+	case ORBIOCSETCALLBACK:
+		_first_callback_link = (orb_callback_link*)arg;
+		_first_callback_link->blink = nullptr;
+		_first_callback_link->flink = nullptr;
 		return OK;
 
 	default:

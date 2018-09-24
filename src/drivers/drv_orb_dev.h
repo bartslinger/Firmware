@@ -76,4 +76,7 @@
 /** Check whether the topic is published, sets *(unsigned long *)arg to 1 if published, 0 otherwise */
 #define ORBIOCISPUBLISHED	_ORBIOC(17)
 
+#define ORBIOCSETCALLBACK	_ORBIOC(18)
+#define ORBIOCREMCALLBACK	_ORBIOC(19)
+
 #endif /* _DRV_UORB_H */

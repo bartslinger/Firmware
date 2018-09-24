@@ -132,3 +132,8 @@ int orb_get_interval(int handle, unsigned *interval)
 {
 	return uORB::Manager::get_instance()->orb_get_interval(handle, interval);
 }
+
+int orb_register_callback(int handle, orb_callback_link *cb_link)
+{
+	return uORB::Manager::get_instance()->orb_register_callback(handle, cb_link);
+}

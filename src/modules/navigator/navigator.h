@@ -382,6 +382,8 @@ private:
 	float _mission_cruising_speed_fw{-1.0f};
 	float _mission_throttle{-1.0f};
 
+	orb_callback_link *_just_one_callback_link = nullptr;
+
 	// update subscriptions
 	void		global_position_update();
 	void		gps_position_update();
