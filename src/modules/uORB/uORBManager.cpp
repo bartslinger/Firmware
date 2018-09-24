@@ -311,6 +311,7 @@ int uORB::Manager::orb_register_callback_multi(const struct orb_metadata *meta, 
 	int fd = node_open(meta, false, &inst);
 	if (fd > 0) {
 		ret = px4_ioctl(fd, ORBIOCSETCALLBACK, (unsigned long)cb_link);
+		px4_close(fd);
 	}
 	return ret;
 }
