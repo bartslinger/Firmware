@@ -133,7 +133,7 @@ int orb_get_interval(int handle, unsigned *interval)
 	return uORB::Manager::get_instance()->orb_get_interval(handle, interval);
 }
 
-int orb_register_callback(int handle, orb_callback_link *cb_link)
+int orb_register_callback_multi(const struct orb_metadata *meta, unsigned instance, orb_callback_link *cb_link)
 {
-	return uORB::Manager::get_instance()->orb_register_callback(handle, cb_link);
+	return uORB::Manager::get_instance()->orb_register_callback_multi(meta, instance, cb_link);
 }

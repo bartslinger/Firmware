@@ -261,7 +261,7 @@ extern int	orb_set_interval(int handle, unsigned interval) __EXPORT;
  */
 extern int	orb_get_interval(int handle, unsigned *interval) __EXPORT;
 
-extern int	orb_register_callback(int handle, struct orb_callback_link *cb_link) __EXPORT;
+extern int	orb_register_callback_multi(const struct orb_metadata *meta, unsigned instance, struct orb_callback_link *cb_link) __EXPORT;
 
 __END_DECLS
 

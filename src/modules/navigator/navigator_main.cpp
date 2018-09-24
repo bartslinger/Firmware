@@ -85,7 +85,7 @@ void orb_callback_function(int fd);
 void orb_callback_function(int fd)
 {
 	(void) fd;
-	PX4_INFO("Received callback from local_pos_sub update");
+	PX4_INFO("Received callback from local_pos_sub update!");
 }
 
 Navigator::Navigator() :
@@ -117,10 +117,13 @@ Navigator::Navigator() :
 	_navigation_mode_array[9] = &_precland;
 	_navigation_mode_array[10] = &_follow_target;
 
+	// Register to a callback function
 	_just_one_callback_link = new orb_callback_link;
 	_just_one_callback_link->blink = nullptr;
 	_just_one_callback_link->flink = nullptr;
 	_just_one_callback_link->cb = orb_callback_function;
+	orb_register_callback_multi(ORB_ID(vehicle_local_position), 0, _just_one_callback_link);
+
 }
 
 void
@@ -201,9 +204,6 @@ Navigator::run()
 	_param_update_sub = orb_subscribe(ORB_ID(parameter_update));
 	_vehicle_command_sub = orb_subscribe(ORB_ID(vehicle_command));
 	_traffic_sub = orb_subscribe(ORB_ID(transponder_report));
-
-	// Register to a callback function
-	orb_register_callback(_local_pos_sub, _just_one_callback_link);
 
 	/* copy all topics first time */
 	vehicle_status_update();

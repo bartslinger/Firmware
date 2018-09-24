@@ -359,7 +359,7 @@ public:
 	 */
 	int	orb_get_interval(int handle, unsigned *interval);
 
-	int	orb_register_callback(int handle, orb_callback_link *cb_link);
+	int	orb_register_callback_multi(const struct orb_metadata *meta, unsigned instance, orb_callback_link *cb_link);
 
 #ifdef ORB_COMMUNICATOR
 	/**

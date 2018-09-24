@@ -304,9 +304,14 @@ int uORB::Manager::orb_get_interval(int handle, unsigned *interval)
 	return ret;
 }
 
-int uORB::Manager::orb_register_callback(int handle, orb_callback_link *cb_link)
+int uORB::Manager::orb_register_callback_multi(const struct orb_metadata *meta, unsigned instance, orb_callback_link *cb_link)
 {
-	int ret = px4_ioctl(handle, ORBIOCSETCALLBACK, (unsigned long)cb_link);
+	int ret = -1;
+	int inst = instance;
+	int fd = node_open(meta, false, &inst);
+	if (fd > 0) {
+		ret = px4_ioctl(fd, ORBIOCSETCALLBACK, (unsigned long)cb_link);
+	}
 	return ret;
 }
 
