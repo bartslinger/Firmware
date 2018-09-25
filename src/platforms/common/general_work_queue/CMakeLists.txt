@@ -31,20 +31,25 @@
 #
 ############################################################################
 
-set(SRCS)
+# nuttx uses internal work queue currently
+if (NOT "${OS}" MATCHES "nuttx")
 
-if (NOT "${OS}" MATCHES "qurt")
-	list(APPEND SRCS
-		px4_log.c
-		)
-endif()
-
-px4_add_library(platforms__common
-	module.cpp
-	px4_getopt.c
-	shutdown.cpp
-	${SRCS}
+	add_library(general_work_queue
+                dq_addlast.c
+                dq_rem.c
+                dq_remfirst.c
+                hrt_queue.c
+                hrt_thread.c
+                hrt_work_cancel.c
+                queue.c
+                sq_addafter.c
+                sq_addlast.c
+                sq_remfirst.c
+                work_cancel.c
+                work_lock.c
+                work_thread.c
+                work_queue.cpp
 	)
-	
-add_subdirectory(work_queue)
-add_subdirectory(general_work_queue)
+	add_dependencies(general_work_queue prebuild_targets)
+
+endif()
