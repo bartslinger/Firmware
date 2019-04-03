@@ -105,6 +105,11 @@ set(config_module_list
 	modules/landing_target_estimator
 
 	#
+	# Simulink module
+	#
+	modules/px4_simulink_app
+
+	#
 	# OBC challenge
 	#
 	examples/bottle_drop
