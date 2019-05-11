@@ -1,7 +1,7 @@
 #!/bin/bash
 
 BASEDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-SRC_DIR="$BASEDIR/../"
+SRC_DIR="$BASEDIR/../../../../"
 
 if [ -z ${BEBOP_IP+x} ]; then 
   ip=192.168.42.1
